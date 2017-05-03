@@ -3,7 +3,6 @@
 import argparse
 import sqlite3
 import sys
-import urllib2
 
 from scrape import scrape_episode
 
@@ -16,36 +15,36 @@ class DatabasePopulator(object):
     def commit(self):
         self.con.commit()
 
-
-    def _add_episode(self, season_num, episode_num, title, date, writer, 
-                                                               director):
+    def _add_episode(
+        self, season_num, episode_num, title, date, writer, director
+    ):
         self.cur.execute("""
             INSERT INTO episode 
             (season_number, episode_number, title, the_date, writer, director) 
-            VALUES(?, ?, ?, ?, ?, ?)""",
-            (season_num, episode_num, title, date, writer, director))
+            VALUES(?, ?, ?, ?, ?, ?)
+        """, (season_num, episode_num, title, date, writer, director))
 
         val = self.cur.execute("""
                                SELECT id
                                FROM episode
                                WHERE season_number = ? AND episode_number = ?
                                """, (season_num, episode_num))
-        return val.next()[0]
+
+        return val.fetchall()[0][0]
 
     def _add_utterance(self, episode_id, utterance_number, speaker, utterance):
         self.cur.execute("""
-            INSERT INTO utterance 
+            INSERT INTO utterance
             (episode_id, utterance_number, speaker, text)
-            VALUES(?, ?, ?, ?)""",
-            (episode_id, utterance_number, speaker, utterance))
+            VALUES(?, ?, ?, ?)
+        """, (episode_id, utterance_number, speaker, utterance))
 
         val = self.cur.execute("""
-                               SELECT id
-                               FROM utterance
-                               WHERE episode_id = ? AND utterance_number = ?
-                               """, (episode_id, utterance_number))
-        return val.next()[0]
-
+           SELECT id
+           FROM utterance
+           WHERE episode_id = ? AND utterance_number = ?
+        """, (episode_id, utterance_number))
+        return val.fetchall()[0][0]
 
     def add_episode(self, html):
         info, utterances = scrape_episode(html)
@@ -57,16 +56,18 @@ class DatabasePopulator(object):
         writer = ', '.join(info['writers'])
         director = info['director']
 
-        episode_id = self._add_episode(season_num, episode_num, title, date, 
-                                       writer, director)
+        episode_id = self._add_episode(
+            season_num, episode_num, title, date, writer, director
+        )
 
         for utt_num, (speaker, utterance) in enumerate(utterances, start=1):
-            utterance_id = self._add_utterance(
+            self._add_utterance(
                 episode_id,
                 utt_num,
                 speaker,
                 utterance
             )
+
 
 def main(args):
     pop = DatabasePopulator(args.db_filepath)
